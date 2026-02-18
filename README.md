@@ -1,7 +1,7 @@
 # AgeCheck Node SDK (`@agecheck/node`)
 
 [![CI](https://github.com/agecheck/agecheck-node/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/agecheck/agecheck-node/actions/workflows/ci.yml)
-[![Compatibility](https://github.com/agecheck/agecheck-node/actions/workflows/compatibility.yml/badge.svg?branch=main)](https://github.com/agecheck/agecheck-node/actions/workflows/compatibility.yml)
+[![Compatibility](https://github.com/agecheck/agecheck-node/actions/workflows/compatibility.yml/badge.svg?branch=main&event=push)](https://github.com/agecheck/agecheck-node/actions/workflows/compatibility.yml)
 [![npm](https://img.shields.io/npm/v/%40agecheck%2Fnode?label=npm)](https://www.npmjs.com/package/@agecheck/node)
 
 TypeScript server SDK for age verification, designed to help websites implement compliant age-assurance flows across jurisdictions.
