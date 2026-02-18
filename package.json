@@ -1,6 +1,6 @@
 {
   "name": "@agecheck/node",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "AgeCheck Node SDK for gate policy, JWT verification, and signed verification cookies.",
   "license": "Apache-2.0",
   "repository": {
@@ -36,7 +36,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@agecheck/core": "^0.1.0"
+    "@agecheck/core": "^0.2.0"
   },
   "devDependencies": {
     "@agecheck/core": "^0.1.1",

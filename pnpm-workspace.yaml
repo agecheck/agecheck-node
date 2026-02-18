@@ -1,4 +1,5 @@
 packages:
+  - "."
   - "worker-demo"
 
 onlyBuiltDependencies:

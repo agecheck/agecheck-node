@@ -9,6 +9,16 @@ This guide describes how to add AgeCheck to an existing adult website without re
 3. Redirect unverified users to your gate route (for example `/ageverify`).
 4. Verify JWT at `POST /verify`, set signed HttpOnly cookie, redirect back.
 
+## Existing Gate Integration (Provider Mode)
+
+If your site already has a gate and multiple providers, add AgeCheck as one provider option:
+
+1. Keep your gate UI and policy engine unchanged.
+2. Generate or forward the provider session identifier (AgeCheck expects `agegateway_session`).
+3. For AgeCheck, call `verifyAgeCheckCredential(...)`.
+4. For other providers, map result with `normalizeExternalProviderAssertion(...)`.
+5. Issue one canonical cookie with `buildSetCookieFromProviderAssertion(...)`.
+
 ## Why this pattern
 
 - enforcement remains server-side
@@ -33,7 +43,18 @@ Set with:
 
 ## Provider coexistence
 
-If you support more than one verifier, normalize each verification result into the SDK `VerificationAssertion` shape and reuse the same signed-cookie issuance and enforcement logic.
+If you support more than one verifier, normalize each verification result into the provider assertion shape and reuse the same signed-cookie issuance and enforcement logic:
+
+```ts
+{
+  provider: string;
+  verified: true;
+  level: `${number}+`;
+  session: string;
+  verifiedAtUnix: number;
+  assurance?: string;
+}
+```
 
 ## Framework adapters
 

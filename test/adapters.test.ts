@@ -94,7 +94,7 @@ describe("express adapter", () => {
         verified: true,
         provider: "external-provider",
         level: "21+",
-        session: "session-123",
+        session: "123e4567-e89b-42d3-a456-426614174020",
       }),
     });
 
@@ -124,7 +124,7 @@ describe("express adapter", () => {
         body: {
           provider: "external-provider",
           payload: {
-            agegateway_session: "session-123",
+            agegateway_session: "123e4567-e89b-42d3-a456-426614174020",
           },
           redirect: "/ok",
         },
@@ -140,6 +140,48 @@ describe("express adapter", () => {
     expect(setCookieHeader).toContain("agecheck_verified=");
     expect(payload).toEqual({ verified: true, redirect: "/ok", ageTier: "21+" });
   });
+
+  it("returns 400 when agegateway session is missing", async () => {
+    const sdk = makeSdk();
+    const handler = createExpressVerifyHandler(sdk, {
+      providerVerifier: async () => ({
+        verified: true,
+        provider: "external-provider",
+        level: "21+",
+        session: "123e4567-e89b-42d3-a456-426614174030",
+      }),
+    });
+
+    let statusCode = 0;
+    let payload: unknown;
+    const response: ExpressResponseLike = {
+      status: (code: number) => {
+        statusCode = code;
+        return response;
+      },
+      json: (body: unknown) => {
+        payload = body;
+        return response;
+      },
+      setHeader: () => undefined,
+      redirect: () => undefined,
+    };
+
+    await handler(
+      {
+        body: {
+          provider: "external-provider",
+          payload: {},
+        },
+        headers: { host: "example.com" },
+      },
+      response,
+      () => undefined,
+    );
+
+    expect(statusCode).toBe(400);
+    expect(payload).toMatchObject({ verified: false, code: "invalid_input" });
+  });
 });
 
 describe("fastify adapter", () => {
@@ -150,7 +192,7 @@ describe("fastify adapter", () => {
         verified: true,
         provider: "external-provider",
         level: "21+",
-        session: "wrong-session",
+        session: "123e4567-e89b-42d3-a456-426614174021",
       }),
     });
 
@@ -179,7 +221,7 @@ describe("fastify adapter", () => {
         headers: { host: "example.com" },
         body: {
           provider: "external-provider",
-          payload: { agegateway_session: "expected-session" },
+          payload: { agegateway_session: "123e4567-e89b-42d3-a456-426614174022" },
         },
       },
       reply,
@@ -235,7 +277,7 @@ describe("hono adapter", () => {
         verified: true,
         provider: "external-provider",
         level: "18+",
-        session: "session-1",
+        session: "123e4567-e89b-42d3-a456-426614174023",
       }),
     });
 
@@ -245,7 +287,7 @@ describe("hono adapter", () => {
         raw: new Request("https://example.com/verify", { method: "POST" }),
         json: async () => ({
           provider: "external-provider",
-          payload: { agegateway_session: "session-1" },
+          payload: { agegateway_session: "123e4567-e89b-42d3-a456-426614174023" },
           redirect: "/done",
         }),
       },
@@ -296,13 +338,13 @@ describe("nuxt adapter", () => {
     const handler = createNuxtVerifyHandler(sdk, {
       readBody: async () => ({
         provider: "external-provider",
-        payload: { agegateway_session: "nuxt-session" },
+        payload: { agegateway_session: "123e4567-e89b-42d3-a456-426614174024" },
       }),
       providerVerifier: async () => ({
         verified: true,
         provider: "external-provider",
         level: "18+",
-        session: "nuxt-session",
+        session: "123e4567-e89b-42d3-a456-426614174024",
       }),
     });
 

@@ -11,7 +11,7 @@ TypeScript server SDK for age verification, designed to help websites implement 
 - enforce gate policy server-side
 - verify AgeCheck credentials (`did:web:agecheck.me` and optional demo issuer)
 - issue and validate signed HttpOnly verification cookies
-- keep provider integration pluggable behind one assertion boundary
+- support Existing Gate Integration and multi-provider coexistence
 
 ## Install
 
@@ -19,14 +19,15 @@ TypeScript server SDK for age verification, designed to help websites implement 
 pnpm add @agecheck/node
 ```
 
-## Minimal integration path (existing sites)
+## Supported integration modes
 
-This is the shortest production path for hostmasters.
+1. Managed gate mode: use AgeCheck gate route + verify route + signed cookie.
+2. Existing Gate Integration: keep your existing gate and add AgeCheck as one provider option.
+3. Hybrid mode: use AgeCheck gate while also supporting other providers in Provider Mode.
 
-1. Build one SDK instance at server startup.
-2. Protect routes with `requireVerifiedOrRedirect(...)`.
-3. Handle `POST /verify` by verifying JWT + session and setting signed cookie.
-4. Trust cookie validation on every protected request.
+All modes converge into one normalized provider assertion and one signed cookie pipeline.
+
+## Minimal managed-gate integration
 
 ```ts
 import { AgeCheckSdk } from "@agecheck/node";
@@ -44,7 +45,7 @@ const sdk = new AgeCheckSdk({
   cookie: {
     secret: process.env.AGECHECK_COOKIE_SECRET!,
     cookieName: "agecheck_verified",
-    ttlSeconds: 86400,
+    ttlSeconds: 86400, // hostmaster-controlled (e.g. 31536000 for 1 year)
   },
 });
 
@@ -85,6 +86,63 @@ export async function verifyEndpoint(request: Request): Promise<Response> {
 }
 ```
 
+## Existing Gate Integration (Provider Mode)
+
+Use these helpers when a hostmaster already has a gate flow and wants to add AgeCheck as a provider:
+
+```ts
+import {
+  AgeCheckSdk,
+  buildSetCookieFromProviderAssertion,
+  normalizeExternalProviderAssertion,
+  verifyAgeCheckCredential,
+  type ProviderVerificationResult,
+} from "@agecheck/node";
+
+const sdk = new AgeCheckSdk({
+  deploymentMode: "production",
+  verify: { requiredAge: 18 },
+  cookie: { secret: process.env.AGECHECK_COOKIE_SECRET! },
+});
+
+export async function verifyProviderEndpoint(body: {
+  provider?: string;
+  jwt?: string;
+  payload?: { agegateway_session?: string };
+  redirect?: string;
+}): Promise<Response> {
+  const expectedSession = body.payload?.agegateway_session;
+  if (typeof expectedSession !== "string" || expectedSession.length === 0) {
+    return Response.json({ verified: false, code: "invalid_input", error: "Missing session." }, { status: 400 });
+  }
+
+  let assertion: ProviderVerificationResult;
+  if ((body.provider ?? "agecheck") === "agecheck") {
+    assertion = await verifyAgeCheckCredential(sdk, {
+      jwt: body.jwt ?? "",
+      expectedSession,
+      assurance: "passkey",
+    });
+  } else {
+    const externalResult: ProviderVerificationResult = await verifyOtherProvider(body);
+    assertion = normalizeExternalProviderAssertion(externalResult, expectedSession);
+  }
+
+  if (!assertion.verified) {
+    return Response.json(
+      { verified: false, code: assertion.code, error: assertion.message, detail: assertion.detail },
+      { status: 401 },
+    );
+  }
+
+  const setCookie = await buildSetCookieFromProviderAssertion(sdk, assertion);
+  return new Response(JSON.stringify({ verified: true, redirect: body.redirect ?? "/" }), {
+    status: 200,
+    headers: { "content-type": "application/json", "set-cookie": setCookie },
+  });
+}
+```
+
 ## Deployment modes
 
 - `production`
@@ -94,18 +152,27 @@ export async function verifyEndpoint(request: Request): Promise<Response> {
   - accepts demo + production issuer credentials
   - gate is always raised
 
-## Provider boundary
+## Provider assertion contract
 
-AgeCheck is the default provider, but you can normalize other provider results into the same assertion model and keep one cookie pipeline.
+Provider results normalize to this shape:
 
 ```ts
-const cookie = await sdk.buildSetCookieFromAssertion({
-  provider: "my-provider",
-  verified: true,
-  level: "21+",
-  verifiedAtUnix: Math.floor(Date.now() / 1000),
-});
+{
+  provider: string;
+  verified: true;
+  level: "18+" | "21+" | `${number}+`;
+  session: string; // UUID
+  verifiedAtUnix: number;
+  assurance?: string;
+  verificationType?: "passkey" | "oid4vp" | "other";
+  evidenceType?: "webauthn_assertion" | "sd_jwt" | "zk_attestation" | "other";
+  providerTransactionId?: string;
+  loa?: string;
+}
 ```
+
+This keeps provider internals isolated while preserving one site-level cookie and enforcement model.
+`payload.agegateway_session` and provider assertion `session` are treated as required UUID values.
 
 ## Framework adapters
 

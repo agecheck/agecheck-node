@@ -11,7 +11,18 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { AgeCheckError, ErrorCode, type AgeCheckSdk, type VerificationAssertion } from "@agecheck/core";
+import {
+  AgeCheckError,
+  ErrorCode,
+  type AgeCheckSdk,
+} from "@agecheck/core";
+import {
+  buildSetCookieFromProviderAssertion,
+  normalizeExternalProviderAssertion,
+  type NormalizedProviderVerificationResult,
+  type ProviderVerificationResult,
+  verifyAgeCheckCredential,
+} from "../provider-mode.js";
 
 export interface AdapterVerifyBody {
   provider?: string;
@@ -21,24 +32,6 @@ export interface AdapterVerifyBody {
   };
   redirect?: string;
 }
-
-export interface ProviderVerificationSuccess {
-  verified: true;
-  provider: string;
-  level: string;
-  session: string;
-  verifiedAtUnix?: number;
-  assurance?: string;
-}
-
-export interface ProviderVerificationFailure {
-  verified: false;
-  code: string;
-  message: string;
-  detail?: string;
-}
-
-export type ProviderVerificationResult = ProviderVerificationSuccess | ProviderVerificationFailure;
 
 export type ProviderVerifier = (body: AdapterVerifyBody) => Promise<ProviderVerificationResult>;
 
@@ -210,56 +203,37 @@ export async function verifyAndBuildOutcome(
   }
 
   const expectedSession = body.payload?.agegateway_session;
+  if (typeof expectedSession !== "string" || expectedSession.length === 0) {
+    return failure(400, ErrorCode.INVALID_INPUT, "Missing payload.agegateway_session.");
+  }
   const redirect = normalizeRedirect(body.redirect);
   const provider = body.provider ?? "agecheck";
 
-  let assertion: VerificationAssertion;
+  let assertion: NormalizedProviderVerificationResult;
   if (provider === "agecheck") {
-    if (typeof body.jwt !== "string") {
-      return failure(400, ErrorCode.INVALID_INPUT, "Missing jwt for agecheck provider");
-    }
-
-    const verify = await sdk.verifyToken(body.jwt, expectedSession);
-    if (!verify.ok) {
-      return failure(401, verify.code, "Age validation failed.", verify.detail);
-    }
-
-    assertion = {
+    const ageCheckResult = await verifyAgeCheckCredential(sdk, {
+      jwt: body.jwt ?? "",
+      expectedSession,
       provider: "agecheck",
-      verified: true,
-      level: verify.ageTier,
-      verifiedAtUnix: Math.floor(Date.now() / 1000),
       assurance: "passkey",
-    };
+    });
+    assertion = ageCheckResult;
   } else {
     if (typeof options.providerVerifier !== "function") {
       return failure(400, ErrorCode.INVALID_INPUT, "Unknown provider and no provider verifier configured");
     }
 
     const providerResult = await options.providerVerifier(body);
-    if (!providerResult.verified) {
-      return failure(401, providerResult.code, providerResult.message, providerResult.detail);
-    }
+    assertion = normalizeExternalProviderAssertion(providerResult, expectedSession);
+  }
 
-    if (expectedSession !== undefined && providerResult.session !== expectedSession) {
-      return failure(401, ErrorCode.SESSION_BINDING_MISMATCH, "Session binding mismatch.");
-    }
-
-    const providerAssertion: VerificationAssertion = {
-      provider: providerResult.provider,
-      verified: true,
-      level: providerResult.level,
-      verifiedAtUnix: providerResult.verifiedAtUnix ?? Math.floor(Date.now() / 1000),
-    };
-    if (providerResult.assurance !== undefined) {
-      providerAssertion.assurance = providerResult.assurance;
-    }
-    assertion = providerAssertion;
+  if (!assertion.verified) {
+    return failure(401, assertion.code, assertion.message, assertion.detail);
   }
 
   let setCookie: string;
   try {
-    setCookie = await sdk.buildSetCookieFromAssertion(assertion);
+    setCookie = await buildSetCookieFromProviderAssertion(sdk, assertion);
   } catch (error: unknown) {
     if (error instanceof AgeCheckError) {
       return failure(500, error.code, "Failed to issue verification cookie", error.message);

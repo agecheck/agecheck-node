@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@agecheck/core':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: ^0.2.0
+        version: 0.2.0
     devDependencies:
       '@types/node':
         specifier: ^24.5.2
@@ -28,8 +28,8 @@ importers:
   worker-demo:
     dependencies:
       '@agecheck/node':
-        specifier: ^0.1.0
-        version: 0.1.0
+        specifier: workspace:*
+        version: link:..
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20260208.0
@@ -43,12 +43,8 @@ importers:
 
 packages:
 
-  '@agecheck/core@0.1.0':
-    resolution: {integrity: sha512-Bv75WqZTuwZJrKDEzYEiL1oe7S3DQV5uiAu7crQjLlhJ8vawdxxUna8+q99QWjOHd//FobDGKuC1eUxpAlLLDA==}
-    engines: {node: '>=20'}
-
-  '@agecheck/node@0.1.0':
-    resolution: {integrity: sha512-CfQnRZk7SelTvK9t2KDdZhFh3y4h94wvBdcFtLigQ7WPzuYDLT+Onr9fijzLoDqnaOjgtAkzega5JHzL7mg5/w==}
+  '@agecheck/core@0.2.0':
+    resolution: {integrity: sha512-6lTs6uvVWJosgQs3NmW9flur5w8dlZKShESrq+e6XAwFc7Wowt0JVi/rqEa9AjAT1Szz8B8aKkuLdx8iHfuW6w==}
     engines: {node: '>=20'}
 
   '@cloudflare/kv-asset-handler@0.4.2':
@@ -1190,13 +1186,9 @@ packages:
 
 snapshots:
 
-  '@agecheck/core@0.1.0':
+  '@agecheck/core@0.2.0':
     dependencies:
       jose: 5.10.0
-
-  '@agecheck/node@0.1.0':
-    dependencies:
-      '@agecheck/core': 0.1.0
 
   '@cloudflare/kv-asset-handler@0.4.2': {}
 
