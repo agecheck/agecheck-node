@@ -29,13 +29,17 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
+      - name: Pack local package
+        run: |
+          mkdir -p /tmp/agecheck-pack
+          pnpm pack --pack-destination /tmp/agecheck-pack
+          ls -la /tmp/agecheck-pack
+
       - name: Validate adapter compatibility against latest frameworks
         shell: bash
         run: |
           set -euo pipefail
-          WORKSPACE="${GITHUB_WORKSPACE}"
-          NODE_TYPES="${WORKSPACE}/dist/index.d.ts"
-          CORE_TYPES="${WORKSPACE}/node_modules/@agecheck/core/dist/index.d.ts"
+          PKG_TGZ="$(ls /tmp/agecheck-pack/*.tgz | head -n1)"
 
           check_project() {
             local name="$1"
@@ -54,6 +58,7 @@ jobs:
               "typecheck": "tsc --noEmit"
             },
             "dependencies": {
+              "@agecheck/node": "file:${PKG_TGZ}",
               ${deps_json}
             },
             "devDependencies": {
@@ -73,11 +78,6 @@ jobs:
               "skipLibCheck": true,
               "exactOptionalPropertyTypes": true,
               "noUncheckedIndexedAccess": true,
-              "baseUrl": ".",
-              "paths": {
-                "@agecheck/node": ["${NODE_TYPES}"],
-                "@agecheck/core": ["${CORE_TYPES}"]
-              },
               "types": ["node"]
             },
             "include": ["index.ts"]

@@ -2,10 +2,9 @@
 
 [![CI](https://github.com/agecheck/agecheck-node/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/agecheck/agecheck-node/actions/workflows/ci.yml)
 [![Compatibility](https://github.com/agecheck/agecheck-node/actions/workflows/compatibility.yml/badge.svg?branch=main)](https://github.com/agecheck/agecheck-node/actions/workflows/compatibility.yml)
-[![Publish](https://github.com/agecheck/agecheck-node/actions/workflows/publish.yml/badge.svg)](https://github.com/agecheck/agecheck-node/actions/workflows/publish.yml)
 [![npm](https://img.shields.io/npm/v/%40agecheck%2Fnode?label=npm)](https://www.npmjs.com/package/@agecheck/node)
 
-Production-grade server SDK for AgeCheck age-gate policy, JWT verification, and stateless signed verification cookies.
+TypeScript server SDK for age verification, designed to help websites implement compliant age-assurance flows across jurisdictions.
 
 ## What this package is for
 
