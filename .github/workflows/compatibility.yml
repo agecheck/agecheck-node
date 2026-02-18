@@ -1,0 +1,111 @@
+name: compatibility
+
+on:
+  pull_request:
+  push:
+    branches: ["**"]
+  schedule:
+    - cron: "0 6 * * 1"
+
+jobs:
+  adapters-latest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install and build package
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build
+
+      - name: Validate adapter compatibility against latest frameworks
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKSPACE="${GITHUB_WORKSPACE}"
+          NODE_TYPES="${WORKSPACE}/dist/index.d.ts"
+          CORE_TYPES="${WORKSPACE}/node_modules/@agecheck/core/dist/index.d.ts"
+
+          check_project() {
+            local name="$1"
+            local deps_json="$2"
+            local code="$3"
+
+            local dir
+            dir="$(mktemp -d)"
+
+            cat > "${dir}/package.json" <<JSON
+          {
+            "name": "compat-${name}",
+            "private": true,
+            "type": "module",
+            "scripts": {
+              "typecheck": "tsc --noEmit"
+            },
+            "dependencies": {
+              ${deps_json}
+            },
+            "devDependencies": {
+              "typescript": "^5.9.2",
+              "@types/node": "^24.5.2"
+            }
+          }
+          JSON
+
+            cat > "${dir}/tsconfig.json" <<'JSON'
+          {
+            "compilerOptions": {
+              "target": "ES2022",
+              "module": "NodeNext",
+              "moduleResolution": "NodeNext",
+              "strict": true,
+              "skipLibCheck": true,
+              "exactOptionalPropertyTypes": true,
+              "noUncheckedIndexedAccess": true,
+              "baseUrl": ".",
+              "paths": {
+                "@agecheck/node": ["${NODE_TYPES}"],
+                "@agecheck/core": ["${CORE_TYPES}"]
+              },
+              "types": ["node"]
+            },
+            "include": ["index.ts"]
+          }
+          JSON
+
+            printf "%s\n" "$code" > "${dir}/index.ts"
+
+            pnpm --dir "${dir}" install --no-frozen-lockfile
+            pnpm --dir "${dir}" typecheck
+          }
+
+          check_project \
+            "express" \
+            '"express": "latest", "@types/express": "latest"' \
+            'import express from "express";\nimport { AgeCheckSdk, createExpressGateMiddleware, createExpressVerifyHandler } from "@agecheck/node";\nconst app = express();\nconst sdk = new AgeCheckSdk({ deploymentMode: "production", verify: { requiredAge: 18 }, gate: { headerName: "X-Age-Gate", requiredValue: "true" }, cookie: { secret: "s".repeat(32) } });\napp.post("/verify", createExpressVerifyHandler(sdk));\napp.use("/restricted", createExpressGateMiddleware(sdk, { gatePath: "/ageverify" }));'
+
+          check_project \
+            "fastify" \
+            '"fastify": "latest"' \
+            'import Fastify from "fastify";\nimport { AgeCheckSdk, createFastifyGateHook, createFastifyVerifyHandler } from "@agecheck/node";\nconst app = Fastify();\nconst sdk = new AgeCheckSdk({ deploymentMode: "production", verify: { requiredAge: 18 }, gate: { headerName: "X-Age-Gate", requiredValue: "true" }, cookie: { secret: "s".repeat(32) } });\napp.post("/verify", createFastifyVerifyHandler(sdk));\napp.addHook("preHandler", async (req, reply) => { if (req.url.startsWith("/restricted")) await createFastifyGateHook(sdk, { gatePath: "/ageverify" })(req, reply); });'
+
+          check_project \
+            "hono" \
+            '"hono": "latest"' \
+            'import { Hono } from "hono";\nimport { AgeCheckSdk, createHonoGateMiddleware, createHonoVerifyHandler } from "@agecheck/node";\nconst app = new Hono();\nconst sdk = new AgeCheckSdk({ deploymentMode: "production", verify: { requiredAge: 18 }, gate: { headerName: "X-Age-Gate", requiredValue: "true" }, cookie: { secret: "s".repeat(32) } });\napp.post("/verify", createHonoVerifyHandler(sdk));\napp.use("/restricted/*", createHonoGateMiddleware(sdk));'
+
+          check_project \
+            "nuxt-vue" \
+            '"nuxt": "latest", "vue": "latest"' \
+            'import { AgeCheckSdk, createNuxtGateMiddleware, createNuxtVerifyHandler } from "@agecheck/node";\nconst sdk = new AgeCheckSdk({ deploymentMode: "production", verify: { requiredAge: 18 }, gate: { headerName: "X-Age-Gate", requiredValue: "true" }, cookie: { secret: "s".repeat(32) } });\nconst gate = createNuxtGateMiddleware(sdk);\nconst verify = createNuxtVerifyHandler(sdk, { readBody: async () => ({ provider: "other", payload: { agegateway_session: "abc" } }), providerVerifier: async () => ({ verified: true, provider: "other", level: "18+", session: "abc" }) });\nvoid gate;\nvoid verify;'

@@ -1,0 +1,17 @@
+{
+  "name": "agecheck-agegate-server",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-12",
+  "vars": {
+    "AGECHECK_DEPLOYMENT_MODE": "demo",
+    "AGECHECK_REQUIRED_AGE": "18",
+    "AGECHECK_EASY_AGEGATE": "false",
+    "AGECHECK_CORS_ALLOWED_ORIGINS": "https://demo.agecheck.me"
+  },
+  "r2_buckets": [
+    {
+      "binding": "DEMO_STATIC",
+      "bucket_name": "demo"
+    }
+  ]
+}
