@@ -84,7 +84,7 @@ jobs:
           }
           JSON
 
-            printf "%s\n" "$code" > "${dir}/index.ts"
+            printf "%b\n" "$code" > "${dir}/index.ts"
 
             pnpm --dir "${dir}" install --no-frozen-lockfile
             pnpm --dir "${dir}" typecheck
