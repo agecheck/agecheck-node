@@ -19,19 +19,7 @@ TypeScript server SDK for age verification, designed to help websites implement 
 pnpm add @agecheck/node
 ```
 
-## Runtime requirement
-
-- Node.js `>=20`
-
-## Required environment variables
-
-```bash
-AGECHECK_COOKIE_SECRET=replace_with_32_plus_bytes_random
-AGECHECK_DEPLOYMENT_MODE=production
-AGECHECK_REQUIRED_AGE=18
-AGECHECK_GATE_HEADER_NAME=X-Age-Gate
-AGECHECK_GATE_HEADER_REQUIRED_VALUE=true
-```
+Quickstart: see `/docs/QUICKSTART.md`.
 
 ## Supported integration modes
 

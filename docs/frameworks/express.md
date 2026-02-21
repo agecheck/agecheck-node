@@ -1,5 +1,7 @@
 # Express Integration
 
+Prerequisites: see `/docs/QUICKSTART.md`.
+
 ```ts
 import express from "express";
 import {
@@ -27,14 +29,4 @@ app.use("/restricted", createExpressGateMiddleware(sdk, { gatePath: "/ageverify"
 app.get("/restricted", (_req, res) => {
   res.status(200).send("Restricted content");
 });
-```
-
-Required environment variables:
-
-```bash
-AGECHECK_COOKIE_SECRET=replace_with_32_plus_bytes_random
-AGECHECK_DEPLOYMENT_MODE=production
-AGECHECK_REQUIRED_AGE=18
-AGECHECK_GATE_HEADER_NAME=X-Age-Gate
-AGECHECK_GATE_HEADER_REQUIRED_VALUE=true
 ```
