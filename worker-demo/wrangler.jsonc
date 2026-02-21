@@ -6,7 +6,7 @@
     "AGECHECK_DEPLOYMENT_MODE": "demo",
     "AGECHECK_REQUIRED_AGE": "18",
     "AGECHECK_EASY_AGEGATE": "false",
-    "AGECHECK_CORS_ALLOWED_ORIGINS": "https://demo.agecheck.me"
+    "AGECHECK_CORS_ALLOWED_ORIGINS": "https://demo.agecheck.me, https://tools.agecheck.me"
   },
   "r2_buckets": [
     {

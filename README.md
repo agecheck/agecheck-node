@@ -19,6 +19,20 @@ TypeScript server SDK for age verification, designed to help websites implement 
 pnpm add @agecheck/node
 ```
 
+## Runtime requirement
+
+- Node.js `>=20`
+
+## Required environment variables
+
+```bash
+AGECHECK_COOKIE_SECRET=replace_with_32_plus_bytes_random
+AGECHECK_DEPLOYMENT_MODE=production
+AGECHECK_REQUIRED_AGE=18
+AGECHECK_GATE_HEADER_NAME=X-Age-Gate
+AGECHECK_GATE_HEADER_REQUIRED_VALUE=true
+```
+
 ## Supported integration modes
 
 1. Managed gate mode: use AgeCheck gate route + verify route + signed cookie.
@@ -27,64 +41,38 @@ pnpm add @agecheck/node
 
 All modes converge into one normalized provider assertion and one signed cookie pipeline.
 
-## Minimal managed-gate integration
+## 5-minute Express setup (recommended)
 
 ```ts
-import { AgeCheckSdk } from "@agecheck/node";
+import express from "express";
+import { AgeCheckSdk, createExpressGateMiddleware, createExpressVerifyHandler } from "@agecheck/node";
+
+const app = express();
+app.use(express.json());
 
 const sdk = new AgeCheckSdk({
-  deploymentMode: "production", // "demo" for demo deployments
+  deploymentMode: (process.env.AGECHECK_DEPLOYMENT_MODE === "demo" ? "demo" : "production"),
   verify: {
-    requiredAge: 18,
+    requiredAge: Number(process.env.AGECHECK_REQUIRED_AGE ?? "18"),
     allowCustomIssuer: false,
   },
   gate: {
-    headerName: "X-Age-Gate",
-    requiredValue: "true",
+    headerName: process.env.AGECHECK_GATE_HEADER_NAME ?? "X-Age-Gate",
+    requiredValue: process.env.AGECHECK_GATE_HEADER_REQUIRED_VALUE ?? "true",
   },
   cookie: {
     secret: process.env.AGECHECK_COOKIE_SECRET!,
     cookieName: "agecheck_verified",
-    ttlSeconds: 86400, // hostmaster-controlled (e.g. 31536000 for 1 year)
+    ttlSeconds: 86400,
   },
 });
 
-export async function enforce(request: Request): Promise<Response | null> {
-  return sdk.requireVerifiedOrRedirect(request, { gatePath: "/ageverify" });
-}
-
-export async function verifyEndpoint(request: Request): Promise<Response> {
-  const body = (await request.json()) as {
-    jwt?: string;
-    payload?: { agegateway_session?: string };
-    redirect?: string;
-  };
-
-  const result = await sdk.verifyToken(body.jwt ?? "", body.payload?.agegateway_session ?? "");
-  if (!result.ok) {
-    return Response.json(
-      { verified: false, error: "Age validation failed.", code: result.code },
-      { status: 401 },
-    );
-  }
-
-  const setCookie = await sdk.buildSetCookieFromAssertion({
-    provider: "agecheck",
-    verified: true,
-    level: result.ageTier,
-    verifiedAtUnix: Math.floor(Date.now() / 1000),
-    assurance: "passkey",
-  });
-
-  const headers = new Headers({ "content-type": "application/json" });
-  headers.append("set-cookie", setCookie);
-
-  return new Response(
-    JSON.stringify({ verified: true, redirect: body.redirect ?? "/" }),
-    { status: 200, headers },
-  );
-}
+app.post("/verify", createExpressVerifyHandler(sdk));
+app.use("/restricted", createExpressGateMiddleware(sdk, { gatePath: "/ageverify" }));
 ```
+
+This route pair handles token verification and signed verification cookie issuance.
+Most hostmasters should not call `buildSetCookieFromAssertion(...)` directly.
 
 ## Existing Gate Integration (Provider Mode)
 
@@ -184,6 +172,24 @@ This keeps provider internals isolated while preserving one site-level cookie an
 - `createNuxtGateMiddleware`, `createNuxtVerifyHandler`
 
 See `/docs/ADAPTERS.md` for adapter mapping and behavior notes.
+
+## Troubleshooting
+
+If you see:
+
+```json
+{
+  "verified": false,
+  "code": "verify_failed",
+  "error": "Failed to issue verification cookie"
+}
+```
+
+check:
+- Node runtime is `>=20`
+- `AGECHECK_COOKIE_SECRET` is present in the running process and at least 32 bytes
+- `payload.agegateway_session` is a UUID
+- your verify route is using adapter helpers (`createExpressVerifyHandler` or equivalent)
 
 ## Worker reference
 

@@ -39,7 +39,7 @@
     "@agecheck/core": "^0.2.0"
   },
   "devDependencies": {
-    "@agecheck/core": "^0.1.1",
+    "@agecheck/core": "^0.2.0",
     "@types/node": "^24.5.2",
     "tsup": "^8.5.0",
     "typescript": "^5.9.2",
